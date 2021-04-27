@@ -1,6 +1,7 @@
-import pyspark
 import json
-from pyspark import SparkContext, SparkConf, SQLContext
+import psycopg2
+import pyspark
+from pyspark import SparkContext, SparkConf
 from pyspark.streaming import StreamingContext
 from pyspark.streaming.kafka import KafkaUtils
 from types import SimpleNamespace
@@ -51,7 +52,44 @@ def process_lines(lines, window_length = 2, sliding_interval = 2):
 
     accumulative = result.updateStateByKey(update_function) # use this if you want to have accumulative sentiments, not windowed sentiments
 
-    return accumulative
+    # return accumulative # use this if you want to have accumulative sentiments, not windowed sentiments
+    
+    return result
+
+def prepare_query_value(data):
+  global positive, negative, neutral
+
+  if data[0] == "positive":
+    positive.add(int(data[1]))
+  elif data[0] == "negative":
+    negative.add(int(data[1]))
+  elif data[0] == "neutral":
+    neutral.add(int(data[1]))
+
+def insert_to_table(rdd):
+  # Database configurations
+  connection = psycopg2.connect(
+    user = 'postgres',
+    password = '1234',
+    host = '127.0.0.1',
+    port = '5432',
+    database = 'twitter'
+  )
+  cursor = connection.cursor()
+
+  rdd.foreach(lambda data: prepare_query_value(data))
+
+  query = """INSERT INTO sentiments(positive, negative, neutral) VALUES (%s, %s, %s)"""
+  cursor.execute(query, (positive.value, negative.value, neutral.value))
+
+  connection.commit()
+  cursor.close()
+  connection.close()
+
+  positive.add(positive.value * (-1))
+  negative.add(negative.value * (-1))
+  neutral.add(neutral.value * (-1))
+    
 
 # Environment variables
 APP_NAME = "PySpark PostgreSQL - via JDBC"
@@ -60,31 +98,18 @@ MASTER = "local"
 KAFKA_TOPIC = "twitter-topic"
 BOOTSTRAP_SERVER = "localhost:9092"
 
-# TABLE = "sentiments"
-# USER = "postgres"
-# PASSWORD  = ""
-
 # Spark configurations
 conf = SparkConf() \
     .setAppName(APP_NAME) \
     .setMaster(MASTER)
-    # .conf("spark.driver.extraClassPath","sqljdbc_7.2/enu/mssql-jdbc-7.2.2.jre8.jar")
 sc = SparkContext(conf=conf)
-
-# sqlContext = SQLContext(sc)
-# sql = sqlContext.sparkSession
 
 ssc = StreamingContext(sc, 1) # stream each one second
 ssc.checkpoint("./checkpoint")
 
-# jdbcDF = sql.read \
-#     .format("jdbc") \
-#     .option("url", "jdbc:postgresql://localhost:5432/twitter") \
-#     .option("dbtable", TABLE) \
-#     .option("user", USER) \
-#     .option("password", PASSWORD) \
-#     .option("driver", "org.postgresql.Driver") \
-#     .load()
+positive = sc.accumulator(0)
+negative = sc.accumulator(0)
+neutral = sc.accumulator(0)
 
 # Consume Kafka topic
 lines = KafkaUtils.createDirectStream(ssc, [KAFKA_TOPIC], {"metadata.broker.list": BOOTSTRAP_SERVER})
@@ -94,6 +119,9 @@ result = process_lines(lines, window_length=2, sliding_interval=2)
 
 # Print the result
 result.pprint()
+
+# Insert to table
+result.foreachRDD(insert_to_table)
 
 ssc.start()
 ssc.awaitTermination()
