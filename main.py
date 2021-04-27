@@ -5,11 +5,22 @@ from pyspark import SparkContext, SparkConf
 from pyspark.streaming import StreamingContext
 from pyspark.streaming.kafka import KafkaUtils
 from types import SimpleNamespace
+from textblob import TextBlob
 
 def update_function(new_values, running_sum):
     if running_sum is None:
         running_sum = 0
     return sum(new_values, running_sum)
+
+# text classification
+def polarity_detection(text):
+    polarity =  TextBlob(text).sentiment.polarity
+    if polarity < -0.1:
+        return -1
+    elif (polarity >= -0.1) & (polarity <= 0.1):
+        return 0
+    elif polarity > 0.1:
+        return 1
 
 def get_sentiment(text):
   positive = 0
@@ -17,16 +28,18 @@ def get_sentiment(text):
   neutral = 0
 
   # apply sentiment analysis library here, this is just dummy function 
-  if len(text) % 3 == 0:
+  sentiment_result = polarity_detection(text)
+  if sentiment_result == 1:
     positive += 1
     return ("positive", positive)
 
-  elif len(text) % 3 == 1:
+  elif sentiment_result == -1:
     negative += 1
     return ("negative", negative)
 
-  neutral += 1
-  return ("neutral", neutral)
+  elif sentiment_result == 0
+    neutral += 1
+    return ("neutral", neutral)
   
 def process_lines(lines, window_length = 2, sliding_interval = 2):
     """
