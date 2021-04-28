@@ -54,13 +54,14 @@ def process_lines(lines, window_length = 2, sliding_interval = 2):
                 format --> ('positive:', num_positive), ('negative:', num_negative), ('neutral:', num_neutral)
                 Example:   ('positive:', 1), ('negative:', 3), ('neutral:', 2)
     """
-    tweets = lines.flatMap(lambda line: line[1].split("\n\n"))
-    objects = tweets.map(lambda tweet: json.loads(tweet, object_hook=lambda d: SimpleNamespace(**d)))
+    # tweets = lines.flatMap(lambda line: line[1].split("\n\n"))
+    # objects = tweets.map(lambda tweet: json.loads(tweet, object_hook=lambda d: SimpleNamespace(**d)))
 
-    texts = objects.map(lambda obj: obj.text) # if using OAuth1
+    # texts = objects.map(lambda obj: obj.text) # if using OAuth1
+    texts = lines.map(lambda obj: obj[1]) # if using OAuth1
 
     ### if using OAuth2
-    # texts = objects.map(lambda obj: obj.data.text) 
+    # texts = lines.map(lambda obj: obj.data.text) 
 
     sentiments = texts.map(get_sentiment) # apply sentiment analysis library here
 
@@ -84,11 +85,11 @@ def prepare_query_value(data):
 
 def insert_to_table(rdd):
   connection = psycopg2.connect(
-    user = 'postgres',
-    password = '1234',
-    host = '127.0.0.1',
+    user = 'bigdata',
+    password = 'tweet',
+    host = 'fata.tech',
     port = '5432',
-    database = 'twitter'
+    database = 'bigdata'
   )
   cursor = connection.cursor()
 
@@ -109,14 +110,14 @@ def insert_to_table(rdd):
 APP_NAME = "PySpark PostgreSQL - via JDBC"
 MASTER = "local"
 
-KAFKA_TOPIC = "twitter-topic"
-BOOTSTRAP_SERVER = "localhost:9092"
+KAFKA_TOPIC = "america"
+BOOTSTRAP_SERVER = "fata.tech:9092"
 
 # Spark configurations
 conf = SparkConf() \
     .setAppName(APP_NAME) \
     .setMaster(MASTER)
-sc = SparkContext(conf=conf)
+sc = SparkContext.getOrCreate(conf=conf)
 
 ssc = StreamingContext(sc, 1) # stream each one second
 ssc.checkpoint("./checkpoint")
