@@ -11,7 +11,7 @@
 ### Requirement
 1. Apache Spark 2.4.7
 2. Python 3.7.x
-3. Apache Kafka 2.4.0
+3. Apache Kafka 2.7.0
 4. spark-streaming-kafka-0-8-assembly_2.11-2.4.7.jar
 5. PostgreSQL 13.x
 6. Node.js 12.18.0
@@ -30,3 +30,8 @@ python3 producer.py
 ```
 spark-submit main.py
 ```
+
+### How to run Node.js streaming visualization
+1. Go to `twitter-sentiment-visualization` folder.
+2. Run `npm install` to install all dependencies.
+3. Run `npm start` to start the visualization.
