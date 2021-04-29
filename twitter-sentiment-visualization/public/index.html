@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Twitter Sentiment Analysis</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.2.0/chart.min.js"
+        integrity="sha512-VMsZqo0ar06BMtg0tPsdgRADvl0kDHpTbugCBBrL55KmucH6hP9zWdLIWY//OTfMnzz6xWQRxQqsUFefwHuHyg=="
+        crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.21.1/axios.min.js"
+        integrity="sha512-bZS47S7sPOxkjU/4Bt0zrhEtWx0y0CRkhEp8IckzK+ltifIIE9EMIMTuT/mEzoIMewUINruDBIR/jJnbguonqQ=="
+        crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"
+        integrity="sha512-qTXRIMyZIFb8iQcfjXWCO8+M5Tbc38Qi5WzdPOYZHIlZpzBHG3L3by84BBBOiRGiEb7KKtAOAs5qYdUiZiQNNQ=="
+        crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="./stylesheets/style.css">
+</head>
+
+<body>
+    <div id="canvas-container">
+        <canvas id="myChart"></canvas>
+    </div>
+    <script>
+        var ctx = document.getElementById('myChart').getContext('2d')
+
+        const data = {
+            labels: [],
+            datasets: [
+                {
+                    label: 'Negative',
+                    backgroundColor: '#e15759',
+                    borderColor: '#e15759',
+                    data: [],
+                },
+                {
+                    label: 'Neutral',
+                    backgroundColor: '#a0cbe8',
+                    borderColor: '#a0cbe8',
+                    data: [],
+                },
+                {
+                    label: 'Positive',
+                    backgroundColor: '#59a14f',
+                    borderColor: '#59a14f',
+                    data: [],
+                }]
+        }
+
+        const config = {
+            type: 'line',
+            data,
+            options: {
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Twitter Sentiment Analysis',
+                        font: {
+                            size: 32
+                        }
+                    }
+                },
+            }
+        }
+
+        var myChart = new Chart(
+            document.getElementById('myChart'),
+            config
+        )
+    </script>
+    <script>
+        function getData() {
+            axios.get("/data")
+                .then(response => {
+                    var negative_ = []
+                    var neutral_ = []
+                    var positive_ = []
+                    var labels_ = []
+
+                    response.data.slice().reverse().forEach(element => {
+                        negative_.push(element.negative)
+                        neutral_.push(element.neutral)
+                        positive_.push(element.positive)
+                        labels_.push(moment(element.created_at).format('HH:mm:ss'))
+                    })
+                    data.labels = labels_
+                    data.datasets[0].data = negative_
+                    data.datasets[1].data = neutral_
+                    data.datasets[2].data = positive_
+                    myChart.update()
+                })
+                .catch(error => console.error(error))
+        }
+        getData()
+        setInterval(getData, 10000)
+    </script>
+</body>
+
+</html>
